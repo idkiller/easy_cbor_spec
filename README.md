@@ -45,7 +45,7 @@ fix length map (0 ~ 23)                       | 101_00000 ~ 101_10111 | 0xa0 ~ 0
 16-bit length map                             | 101_11001             | 0xb9
 32-bit length map                             | 101_11010             | 0xba
 64-bit length map                             | 101_11011             | 0xbb
-indefinite length array                       | 101_11111             | 0xbf
+indefinite length map                         | 101_11111             | 0xbf
 tag type (n length tags)                      | 110_00000 ~ 110_11011 | 0xc0 ~ 0xdb
 simple value : unassigned                     | 111_00000 ~ 111_10011 | 0xe0 ~ 0xf3
 simple value : False                          | 111_10100             | 0xf4
@@ -162,6 +162,32 @@ type (the high-order 3 bits) and additional information (the low-order 5 bits).
 
 Four CBOR items (array, maps, byte strings, text strings) can be encoded 
 with an indefinite length using additional information value 31.
+
+The end of the indefinite-length type is indicated by encoding a "break" stop
+code in a place where the next data item would normally have been included.
+
+
+## simple value format family
+    
+    false
+    +------+
+    | 0xf4 |
+    +------+
+
+    true
+    +------+
+    | 0xf5 |
+    +------+
+
+    null
+    +------+
+    | 0xf6 |
+    +------+
+
+    undefined
+    +------+
+    | 0xf7 |
+    +------+
 
 
 
@@ -502,23 +528,127 @@ with an indefinite length using additional information value 31.
     +------+
 
 
+## tag type format family 
+
+### standard date/time string
+
+    RFC3339 standard format string
+    +------+--------+======+
+    | 0xc0 |XXXXXXXX| data |
+    +------+--------+======+
+
+### epoch-based date/time family
+    
+    positive seconds relative to 1970-01-01T00:00Z in UTC time
+    +------+--------+======+
+    | 0xc1 |000XXXXX| data | 
+    +------+--------+======+
+
+    negative seconds relative to 1970-01-01T00:00Z in UTC time
+    +------+--------+======+
+    | 0xc1 |001XXXXX| data |
+    +------+--------+======+
+
+    IEEE 754 half-precision fractional seconds relative 
+    +------+--------+--------+--------+
+    | 0xc1 |11111001|ZZZZZZZZ|ZZZZZZZZ|
+    +------+--------+--------+--------+
+
+    IEEE 754 single-precision fractional seconds relative 
+    +------+--------+--------+--------+--------+--------+
+    | 0xc1 |11111010|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
+    +------+--------+--------+--------+--------+--------+
+
+    IEEE 754 double-precision fractional seconds relative 
+    +------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
+    | 0xc1 |11111011|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
+    +------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
+
+### big number format family
+
+    big number encoded as a byte string data item.
+    positive big number is interpreted as an unsigned integer n in network byte order.
+    the value of negative big number present -1 - n
+    big number n is represent in hexadecimal.
+    for example, C2 29 01 00 00 00 00 00 00 00 00 represent 18446744073709551616 (2**64)
+    
+    positive big number that encoded as 0 ~ 23 bytes length of string data
+    +------+--------+======+
+    | 0xc2 |000XXXXX| data |  XXXXX < 10111
+    +------+--------+======+
+
+    positive big number that encoded as 0 ~ 255 bytes length of string data
+    +------+------+----------+======+
+    | 0xc2 | 0x18 | ZZZZZZZZ | data |
+    +------+------+----------+======+
+
+    positive big number that encoded as 0 ~ 65535 bytes length of string data
+    +------+------+----------+----------+======+
+    | 0xc2 | 0x19 | ZZZZZZZZ | ZZZZZZZZ | data |
+    +------+------+----------+----------+======+
+
+    positive big number that encoded as 0 ~ 4294967295 bytes length of string data
+    +------+------+----------+----------+----------+----------+======+
+    | 0xc2 | 0x19 | ZZZZZZZZ | ZZZZZZZZ | ZZZZZZZZ | ZZZZZZZZ | data |
+    +------+------+----------+----------+----------+----------+======+
+
+    positive big number that encoded as 0 ~ 18446744073709551615 bytes length of string data
+    +------+------+----------+----------+----------+----------+----------+----------+----------+----------+======+
+    | 0xc2 | 0x19 | ZZZZZZZZ | ZZZZZZZZ | ZZZZZZZZ | ZZZZZZZZ | ZZZZZZZZ | ZZZZZZZZ | ZZZZZZZZ | ZZZZZZZZ | data |
+    +------+------+----------+----------+----------+----------+----------+----------+----------+----------+======+
+    
+    negative big number that encoded as 0 ~ 23 bytes length of string data
+    +------+--------+======+
+    | 0xc3 |000XXXXX| data |  XXXXX < 10111
+    +------+--------+======+
+
+    negative big number that encoded as 0 ~ 255 bytes length of string data
+    +------+------+----------+======+
+    | 0xc3 | 0x18 | ZZZZZZZZ | data |
+    +------+------+----------+======+
+
+    negative big number that encoded as 0 ~ 65535 bytes length of string data
+    +------+------+----------+----------+======+
+    | 0xc3 | 0x19 | ZZZZZZZZ | ZZZZZZZZ | data |
+    +------+------+----------+----------+======+
+
+    negative big number that encoded as 0 ~ 4294967295 bytes length of string data
+    +------+------+----------+----------+----------+----------+======+
+    | 0xc3 | 0x19 | ZZZZZZZZ | ZZZZZZZZ | ZZZZZZZZ | ZZZZZZZZ | data |
+    +------+------+----------+----------+----------+----------+======+
+
+    negative big number that encoded as 0 ~ 18446744073709551615 bytes length of string data
+    +------+------+----------+----------+----------+----------+----------+----------+----------+----------+======+
+    | 0xc3 | 0x19 | ZZZZZZZZ | ZZZZZZZZ | ZZZZZZZZ | ZZZZZZZZ | ZZZZZZZZ | ZZZZZZZZ | ZZZZZZZZ | ZZZZZZZZ | data |
+    +------+------+----------+----------+----------+----------+----------+----------+----------+----------+======+
+
+### decimal fraction
+
+    Decimal fractions combine an integer mantissa with a base-10 scaling factor.
+    It is represented as a tagged array that contains exactly
+    two integer numbers: an exponent e and a mantissa m.
+    the value of a decimal fraction data item is m*(10**e).
+
+    decimal fractions represented array with an base-10 exponent and a mantissa
+    +------+--------+~~~~~~~~~~+~~~~~~~~~~+
+    | 0xc4 |10000002| exponent | mantissa |
+    +------+--------+~~~~~~~~~~+~~~~~~~~~~+
+
+    * exponent and mantissa is signed integer
 
 
-#### Indefinite-Length Arrays and Maps
+### big float
+    
+    big floats combine an integer mantissa with a base-2 scaling factor.
+    They are binary floating-point values that can exceed the range or
+    the precision of the three IEEE 754 formats supported by CBOR
+    it use base-2 exponents; the value of a bigfloat data item is m*(2**e).
 
-The end of the indefinite-length array or map is indicated by encoding a
-"break" stop code in a place where the next data item would normally have been
-included.
+    big float represented array with an base-2 exponent and a mantissa
+    +------+--------+~~~~~~~~~~+~~~~~~~~~~+
+    | 0xc5 |10000002| exponent | mantissa |
+    +------+--------+~~~~~~~~~~+~~~~~~~~~~+
 
+    * exponent and mantissa is signed integer
 
-#### Indefinite-Length Byte Strings and Text Strings
-
-Indefinite-length byte strings and text strings are actually a concatenation
-of zero or more definite-length byte or text strings ("chunks") that are
-together treated as one contiguous string.
-
-The end of the series of chunks is indicated by encoding the "break" stop code
-in a place where the next chunk in the series would occur.
-
-The contents of the chunks are concatenated together, and the overall length of
-the indefinite-length string will be the sum of the lengths of all of the chunks.
+ 
